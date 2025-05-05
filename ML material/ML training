@@ -5,7 +5,7 @@ from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 
 # Load your dataset
-df = pd.read_csv("SGcleaned.csv")  # Ensure SGcleaned.csv is in your local repo
+df = pd.read_csv('SGclean.csv')  # Ensure SGclean.csv is in your local repo
 
 # Clean column names
 df.columns = df.columns.str.lower().str.replace(" ", "_")
