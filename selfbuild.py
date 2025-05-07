@@ -12,8 +12,17 @@ st.markdown("Enter your address or ZIP code to find nearby amenities.")
 # 1. Address input
 address = st.text_input("Enter your address or ZIP code", "St. Gallen, Switzerland")
 
-# 2. Select one or more amenities
-amenity_options = ["supermarket", "school", "hospital", "pharmacy", "restaurant"]
+# 2. Amenity options
+# Use separate tags: 'shop' for supermarket, 'amenity' for others
+amenity_config = {
+    "supermarket": "shop",
+    "school": "amenity",
+    "hospital": "amenity",
+    "pharmacy": "amenity",
+    "restaurant": "amenity"
+}
+
+amenity_options = list(amenity_config.keys())
 selected_amenities = st.multiselect("Select amenities", amenity_options, default=["supermarket"])
 
 # 3. Radius slider
@@ -35,28 +44,39 @@ if st.button("Search"):
         folium.Marker([lat, lon], tooltip="Your Location", icon=folium.Icon(color='blue')).add_to(m)
 
         for amenity in selected_amenities:
+            tag_type = amenity_config[amenity]
+
+            # Overpass query including nodes, ways, relations
             query = f"""
             [out:json];
-            node["amenity"="{amenity}"](around:{radius},{lat},{lon});
-            out body;
+            (
+              node["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+              way["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+              relation["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+            );
+            out center;
             """
+
             url = "https://overpass-api.de/api/interpreter"
             response = requests.post(url, data=query)
             data = response.json()
 
             if "elements" in data and data["elements"]:
                 results = []
-                for node in data["elements"]:
-                    nlat, nlon = node["lat"], node["lon"]
-                    dist = geodesic((lat, lon), (nlat, nlon)).meters
-                    name = node.get("tags", {}).get("name", f"{amenity.title()} (Unnamed)")
-                    results.append((name, dist, nlat, nlon))
+                for el in data["elements"]:
+                    # Use center if it's a way or relation
+                    el_lat = el.get("lat") or el.get("center", {}).get("lat")
+                    el_lon = el.get("lon") or el.get("center", {}).get("lon")
+                    if el_lat and el_lon:
+                        dist = geodesic((lat, lon), (el_lat, el_lon)).meters
+                        name = el.get("tags", {}).get("name", f"{amenity.title()} (Unnamed)")
+                        results.append((name, dist, el_lat, el_lon))
 
                 # Show top 3
                 top = sorted(results, key=lambda x: x[1])[:3]
-                for name, dist, nlat, nlon in top:
+                for name, dist, el_lat, el_lon in top:
                     folium.Marker(
-                        [nlat, nlon],
+                        [el_lat, el_lon],
                         tooltip=f"{name} — {dist:.0f} m",
                         icon=folium.Icon(color="green", icon="info-sign")
                     ).add_to(m)
@@ -64,5 +84,6 @@ if st.button("Search"):
                 st.info(f"No {amenity}s found nearby.")
 
         st.subheader("🗺️ Map of Nearby Amenities")
-        st_folium(m, width=700, height=500)
+        st_data = st_folium(m, width=700, height=500)
+
 
