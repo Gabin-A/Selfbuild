@@ -12,24 +12,38 @@ st.title("🏙️ Nearby Amenities Finder")
 if "map_html" not in st.session_state:
     st.session_state.map_html = None
 
-# ---- User inputs ----
-address = st.text_input("Enter your address or ZIP code", "St. Gallen, Switzerland")
+# ---- Improved Address Input ----
+st.header("📍 Enter Your Address")
+col1, col2 = st.columns([2, 1])
+street = col1.text_input("Street", "Rosenbergstrasse")
+house_number = col2.text_input("House Number", "51")
+zip_code = st.text_input("ZIP Code", "9000")
+city = st.text_input("City", "St. Gallen")
 
+# ---- Amenity Selection with Buttons ----
+st.header("🏪 Select Amenities")
 amenity_config = {
-    "supermarket": "shop",
-    "school": "amenity",
-    "hospital": "amenity",
-    "pharmacy": "amenity",
-    "restaurant": "amenity"
+    "Supermarket": "shop",
+    "School": "amenity",
+    "Hospital": "amenity",
+    "Pharmacy": "amenity",
+    "Restaurant": "amenity"
 }
-amenity_options = list(amenity_config.keys())
-selected_amenities = st.multiselect("Select amenities", amenity_options, default=["supermarket"])
+selected_amenities = []
+
+cols = st.columns(len(amenity_config))
+for i, label in enumerate(amenity_config.keys()):
+    if cols[i].checkbox(label, key=f"btn_{label}"):
+        selected_amenities.append(label.lower())
+
+# ---- Radius Selection ----
 radius = st.slider("Search radius (meters)", 500, 20000, 3000)
 
 # ---- Run search on button click ----
-if st.button("Search"):
+if st.button("🔍 Search Nearby"):
+    full_address = f"{street} {house_number}, {zip_code} {city}"
     geolocator = Nominatim(user_agent="streamlit_app")
-    location = geolocator.geocode(address)
+    location = geolocator.geocode(full_address)
 
     if not location:
         st.error("📍 Location not found.")
@@ -43,7 +57,7 @@ if st.button("Search"):
 
         try:
             for amenity in selected_amenities:
-                tag_type = amenity_config[amenity]
+                tag_type = amenity_config[amenity.capitalize()]
                 query = f"""
                 [out:json];
                 (
@@ -73,9 +87,7 @@ if st.button("Search"):
                         icon=folium.Icon(color="green")
                     ).add_to(folium_map)
 
-            # Save map as HTML string
             st.session_state.map_html = folium_map._repr_html_()
-
         except Exception as e:
             st.error(f"❌ Error during Overpass request: {e}")
             st.session_state.map_html = None
