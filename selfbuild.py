@@ -5,9 +5,10 @@ from geopy.distance import geodesic
 import folium
 from streamlit_folium import st_folium
 
+# ---------------------------
+# 1. Widget Inputs
+# ---------------------------
 st.title("🏙️ Nearby Amenities Finder")
-
-# ---- Set up inputs ----
 address = st.text_input("Enter your address or ZIP code", "St. Gallen, Switzerland")
 
 amenity_config = {
@@ -21,42 +22,52 @@ amenity_options = list(amenity_config.keys())
 selected_amenities = st.multiselect("Select amenities", amenity_options, default=["supermarket"])
 radius = st.slider("Search radius (meters)", 500, 20000, 3000)
 
-# ---- Button triggers search ----
+# ---------------------------
+# 2. Handle Button
+# ---------------------------
+if "run_query" not in st.session_state:
+    st.session_state.run_query = False
+
 if st.button("Search"):
-    # Store selections in session_state to preserve across reruns
-    st.session_state["search_triggered"] = True
-    st.session_state["address"] = address
-    st.session_state["amenities"] = selected_amenities
-    st.session_state["radius"] = radius
+    st.session_state.run_query = True
+    st.session_state.map = None
 
-    geolocator = Nominatim(user_agent="streamlit_app")
-    location = geolocator.geocode(address)
+# ---------------------------
+# 3. Do the search only ONCE
+# ---------------------------
+if st.session_state.run_query:
+    try:
+        geolocator = Nominatim(user_agent="streamlit_app")
+        location = geolocator.geocode(address)
 
-    if not location:
-        st.session_state["map"] = None
-        st.error("📍 Location not found.")
-    else:
-        lat, lon = location.latitude, location.longitude
-        folium_map = folium.Map(location=[lat, lon], zoom_start=14)
-        folium.Marker([lat, lon], tooltip="Your Location", icon=folium.Icon(color='blue')).add_to(folium_map)
+        if not location:
+            st.error("📍 Location not found.")
+            st.session_state.run_query = False
+        else:
+            lat, lon = location.latitude, location.longitude
+            st.success(f"📍 Found: {location.address} ({lat:.5f}, {lon:.5f})")
 
-        for amenity in selected_amenities:
-            tag_type = amenity_config[amenity]
-            query = f"""
-            [out:json];
-            (
-              node["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
-              way["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
-              relation["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
-            );
-            out center;
-            """
-            try:
+            # Create the folium map
+            folium_map = folium.Map(location=[lat, lon], zoom_start=14)
+            folium.Marker([lat, lon], tooltip="Your Location", icon=folium.Icon(color='blue')).add_to(folium_map)
+
+            for amenity in selected_amenities:
+                tag_type = amenity_config[amenity]
+                query = f"""
+                [out:json];
+                (
+                  node["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+                  way["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+                  relation["{tag_type}"="{amenity}"](around:{radius},{lat},{lon});
+                );
+                out center;
+                """
                 response = requests.post("https://overpass-api.de/api/interpreter", data=query, timeout=30)
                 data = response.json()
+                elements = data.get("elements", [])
 
                 results = []
-                for el in data.get("elements", []):
+                for el in elements:
                     el_lat = el.get("lat") or el.get("center", {}).get("lat")
                     el_lon = el.get("lon") or el.get("center", {}).get("lon")
                     if el_lat and el_lon:
@@ -68,18 +79,9 @@ if st.button("Search"):
                     folium.Marker(
                         [el_lat, el_lon],
                         tooltip=f"{name} — {dist:.0f} m",
-                        icon=folium.Icon(color="green", icon="info-sign")
-                    ).add_to(folium_map)
-            except Exception as e:
-                st.warning(f"Could not fetch {amenity}: {e}")
+                        icon=folium.Icon(color="green")
+                    ).add
 
-        # Store the finished map
-        st.session_state["map"] = folium_map
-
-# ---- Map display logic ----
-if st.session_state.get("search_triggered") and st.session_state.get("map"):
-    st.subheader("🗺️ Map of Nearby Amenities")
-    st_folium(st.session_state["map"], width=700, height=500)
 
 
 
