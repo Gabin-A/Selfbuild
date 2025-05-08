@@ -20,6 +20,15 @@ house_number = col2.text_input("House Number", "51")
 zip_code = st.text_input("ZIP Code", "9000")
 city = st.text_input("City", "St. Gallen")
 
+#selection of a precise location
+
+st.header("📌 Add a Location to Compare Distance")
+compare_street = st.text_input("Compare Street", "")
+compare_house_number = st.text_input("Compare House Number", "")
+compare_zip_code = st.text_input("Compare ZIP Code", "")
+compare_city = st.text_input("Compare City", "")
+
+
 # ---- Amenity Selection with Buttons ----
 st.header("🏪 Select Amenities")
 amenity_config = {
@@ -44,6 +53,7 @@ if st.button("🔍 Search Nearby"):
     full_address = f"{street} {house_number}, {zip_code} {city}"
     geolocator = Nominatim(user_agent="streamlit_app")
     location = geolocator.geocode(full_address)
+    
 
     if not location:
         st.error("📍 Location not found.")
@@ -91,6 +101,15 @@ if st.button("🔍 Search Nearby"):
         except Exception as e:
             st.error(f"❌ Error during Overpass request: {e}")
             st.session_state.map_html = None
+
+            # Try to geocode comparison point
+compare_lat, compare_lon = None, None
+if compare_street and compare_zip_code and compare_city:
+    compare_address = f"{compare_street} {compare_house_number}, {compare_zip_code} {compare_city}"
+    compare_location = geolocator.geocode(compare_address)
+    if compare_location:
+        compare_lat = compare_location.latitude
+        compare_lon = compare_location.longitude
 
 # ---- Display map safely with no reruns ----
 if st.session_state.map_html:
