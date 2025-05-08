@@ -8,6 +8,12 @@ from streamlit_folium import st_folium
 st.set_page_config(page_title="Nearby Amenities Finder", layout="centered")
 st.title("🏙️ Nearby Amenities Finder")
 
+# ---- Initialize session state ----
+if "map" not in st.session_state:
+    st.session_state.map = None
+if "search_triggered" not in st.session_state:
+    st.session_state.search_triggered = False
+
 # ---- User inputs ----
 address = st.text_input("Enter your address or ZIP code", "St. Gallen, Switzerland")
 
@@ -22,25 +28,20 @@ amenity_options = list(amenity_config.keys())
 selected_amenities = st.multiselect("Select amenities", amenity_options, default=["supermarket"])
 radius = st.slider("Search radius (meters)", 500, 20000, 3000)
 
-# ---- Session state init ----
-if "run_query" not in st.session_state:
-    st.session_state.run_query = False
-if "map" not in st.session_state:
-    st.session_state.map = None
-
-# ---- Trigger search ----
+# ---- Trigger search only once ----
 if st.button("Search"):
-    st.session_state.run_query = True
+    st.session_state.search_triggered = True
 
 # ---- Search logic ----
-if st.session_state.get("run_query", False):
-    st.session_state.run_query = False  # Reset trigger after execution
+if st.session_state.search_triggered:
+    st.session_state.search_triggered = False  # Reset the trigger immediately
 
     geolocator = Nominatim(user_agent="streamlit_app")
     location = geolocator.geocode(address)
 
     if not location:
         st.error("📍 Location not found.")
+        st.session_state.map = None
     else:
         lat, lon = location.latitude, location.longitude
         st.success(f"📍 Found: {location.address} ({lat:.5f}, {lon:.5f})")
@@ -73,7 +74,6 @@ if st.session_state.get("run_query", False):
                         name = el.get("tags", {}).get("name", f"{amenity.title()} (Unnamed)")
                         results.append((name, dist, el_lat, el_lon))
 
-                # Add up to 3 closest locations to the map
                 for name, dist, el_lat, el_lon in sorted(results, key=lambda x: x[1])[:3]:
                     folium.Marker(
                         [el_lat, el_lon],
@@ -81,14 +81,18 @@ if st.session_state.get("run_query", False):
                         icon=folium.Icon(color="green")
                     ).add_to(folium_map)
 
+            # Save map in session to display it outside rerun block
             st.session_state.map = folium_map
+
         except Exception as e:
             st.error(f"❌ Error during Overpass request: {e}")
+            st.session_state.map = None
 
-# ---- Display map ----
+# ---- Display map (separate from search logic) ----
 if st.session_state.map:
     st.subheader("🗺️ Map of Nearest Amenities")
     st_folium(st.session_state.map, width=700, height=500)
+
 
 
 
