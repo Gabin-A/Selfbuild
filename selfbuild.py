@@ -15,7 +15,7 @@ if "map_html" not in st.session_state:
 # ---- Improved Address Input ----
 st.header("📍 Enter Your Address")
 col1, col2 = st.columns([2, 1])
-street = col1.text_input("Street")
+street = col1.text_input("Street", 'unterstrasse')
 house_number = col2.text_input("House Number", "51")
 zip_code = st.text_input("ZIP Code", "9000")
 city = st.text_input("City", "St. Gallen")
