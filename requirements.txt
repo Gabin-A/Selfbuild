@@ -1,6 +1,10 @@
-streamlit
+streamlit==1.33.0 # for st.experimental_rerun function
 requests
-geopy
-pandas
 folium
 streamlit-folium
+scikit-learn==1.5.1 # for consistency in .pkl file genaration
+joblib
+numpy
+pandas
+matplotlib
+geopy
