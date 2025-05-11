@@ -8,7 +8,7 @@ import streamlit.components.v1 as components #to be able to create a custom comp
 
 #set page title using https://docs.streamlit.io/ examples
 st.set_page_config(page_title='Local Amenities Finder', layout='centered')
-st.title('Local Amenities :blue[Finder]')
+st.title('Local Amenities :red[Finder]')
 
 #storing follow up infos in the map
 if "map_html" not in st.session_state:
